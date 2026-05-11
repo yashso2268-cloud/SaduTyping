@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SADU TYPING | Neural Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <canvas id="network-canvas"></canvas>
+
+    <header class="main-header">
+        <div class="logo-area">
+            <div class="glitch-wrapper">
+                <div class="brand-text">SADU <span>TYPING</span></div>
+            </div>
+        </div>
+        <div class="user-status">
+            <div class="level-badge">RANK: <span>{{ level }}</span></div>
+            <a href="{{ url_for('logout') }}" style="margin-left: 20px; color: #ff4b4b; text-decoration: none; font-size: 10px; font-weight: 900;">ABORT MISSION</a>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="header-glitch">MISSION SELECT</div>
+                <div class="system-status">SYSTEM: ONLINE</div>
+            </div>
+            <div class="level-list" id="level-list">
+                {% for i in range(1, 51) %}
+                <div class="level-wrapper">
+                    <div class="level-node {% if i > level %}locked{% endif %} {% if i == level %}active{% endif %}" 
+                         {% if i <= level %}onclick="loadLevel({{ i - 1 }})"{% endif %}>
+                        <div class="node-bg"></div>
+                        <div class="node-content">
+                            <span class="lvl-tag">PHASE</span>
+                            <span class="lvl-number">{{ "%02d" | format(i) }}</span>
+                        </div>
+                        <div class="node-status">
+                            {% if i < level %}<span class="status-icon">COMPLETED</span>
+                            {% elif i == level %}<span class="status-icon live">READY</span>
+                            {% else %}<span class="status-icon locked">ENCRYPTED</span>{% endif %}
+                        </div>
+                        <div class="scanner-line"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <main class="typing-center">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="label">PRECISION</span>
+                    <span class="value" id="acc">100%</span>
+                </div>
+                <div class="metric-card">
+                    <span class="label">VELOCITY</span>
+                    <span class="value" id="wpm">00</span>
+                </div>
+                <div class="metric-card">
+                    <span class="label">REMAINING</span>
+                    <span class="value" id="timer">60s</span>
+                </div>
+            </div>
+
+            <div class="console-box" onclick="document.getElementById('typing-input').focus()">
+                <div id="text-display">Initializing Neural Link...</div>
+                <input type="text" id="typing-input" spellcheck="false" autocomplete="off">
+                <div class="cursor-focus"></div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="success-modal">
+        <div class="modal-content">
+            <h2 id="modal-title">PHASE COMPLETE</h2> 
+            <p id="modal-msg">Accuracy: 0% | Speed: 0 WPM</p>
+            <button class="modal-btn" id="next-lvl-btn">Initialize Next Phase</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="cert-modal" style="display: none;">
+        <div class="modal-content certificate-style">
+            <h2 class="header-glitch">MASTERY DETECTED</h2>
+            <p>You have successfully bypassed all 50 security layers. Claim your official Certificate of Excellence.</p>
+            
+            <div class="cert-form">
+                <input type="text" id="cert-name" placeholder="ENTER FULL NAME" class="premium-input">
+                <input type="email" id="cert-email" placeholder="ENTER EMAIL ADDRESS" class="premium-input">
+            </div>
+
+            <button class="modal-btn claim-btn" onclick="submitCertificate()">CLAIM CERTIFICATE</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='typing.js') }}"></script>
+    <script>
+        window.addEventListener('load', () => {
+            loadLevel({{ level - 1 }});
+        });
+
+        // Background Animation (Improved Mouse Interaction)
+        const canvas = document.getElementById('network-canvas');
+        const ctx = canvas.getContext('2d');
+        let pts = [];
+        let mouse = { x: null, y: null };
+
+        window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+
+        function init() {
+            canvas.width = window.innerWidth; 
+            canvas.height = window.innerHeight;
+            pts = Array.from({length: 50}, () => ({
+                x: Math.random()*canvas.width, 
+                y: Math.random()*canvas.height, 
+                vx: (Math.random()-0.5)*0.3, 
+                vy: (Math.random()-0.5)*0.3
+            }));
+        }
+
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.strokeStyle = "rgba(30, 107, 226, 0.15)";
+            pts.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy;
+                if(p.x<0||p.x>canvas.width) p.vx*=-1; 
+                if(p.y<0||p.y>canvas.height) p.vy*=-1;
+
+                // Mouse proximity lines
+                let dMouse = Math.hypot(p.x - mouse.x, p.y - mouse.y);
+                if(dMouse < 150) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = "rgba(63, 199, 255, 0.3)";
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(mouse.x, mouse.y);
+                    ctx.stroke();
+                }
+
+                for(let j=i+1; j<pts.length; j++) {
+                    let d = Math.hypot(p.x-pts[j].x, p.y-pts[j].y);
+                    if(d<200) { 
+                        ctx.beginPath(); 
+                        ctx.strokeStyle = "rgba(30, 107, 226, 0.08)";
+                        ctx.moveTo(p.x,p.y); 
+                        ctx.lineTo(pts[j].x,pts[j].y); 
+                        ctx.stroke(); 
+                    }
+                }
+            });
+            requestAnimationFrame(draw);
+        }
+
+        window.addEventListener('resize', init);
+        init(); 
+        draw();
+
+        // Certificate Submission Logic
+        function submitCertificate() {
+            const name = document.getElementById('cert-name').value;
+            const email = document.getElementById('cert-email').value;
+
+            if(!name || !email) {
+                alert("Please fill all fields to generate certificate.");
+                return;
+            }
+
+            const btn = document.querySelector('.claim-btn');
+            btn.innerText = "TRANSMITTING...";
+            btn.disabled = true;
+
+            fetch('/claim_certificate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, email: email })
+            }).then(res => res.json())
+              .then(data => {
+                  if(data.status === 'success') {
+                      alert("Certificate sent! Check your inbox.");
+                      window.location.href = '/logout';
+                  } else {
+                      alert("Error: " + data.message);
+                      btn.innerText = "CLAIM CERTIFICATE";
+                      btn.disabled = false;
+                  }
+              });
+        }
+    </script>
+</body>
+</html>

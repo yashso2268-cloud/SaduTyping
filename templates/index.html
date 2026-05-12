@@ -5,8 +5,37 @@
     <title>SADU TYPING | Neural Interface</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Mobile Overlay Styles */
+        #mobile-blocker {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            color: #fff;
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+            padding: 20px;
+        }
+        .warning-box { border: 1px solid #ff4b4b; padding: 40px; border-radius: 2px; background: rgba(255, 75, 75, 0.05); }
+        .warning-box h1 { color: #ff4b4b; font-weight: 900; letter-spacing: 5px; margin-bottom: 10px; }
+        .warning-box p { font-family: 'JetBrains Mono', monospace; font-size: 14px; opacity: 0.8; }
+    </style>
 </head>
 <body>
+    <div id="mobile-blocker">
+        <div class="warning-box">
+            <h1>ACCESS RESTRICTED</h1>
+            <p>> SYSTEM_ERROR: PHYSICAL_KEYBOARD_NOT_FOUND</p>
+            <p>The SADU Neural Interface requires desktop hardware to ensure mission integrity.</p>
+            <div style="margin-top: 30px; font-size: 10px; color: #ff4b4b;">PLEASE SWITCH TO A WORKSTATION</div>
+        </div>
+    </div>
+
     <canvas id="network-canvas"></canvas>
 
     <header class="main-header">
@@ -85,18 +114,27 @@
         <div class="modal-content certificate-style">
             <h2 class="header-glitch">MASTERY DETECTED</h2>
             <p>You have successfully bypassed all 50 security layers. Claim your official Certificate of Excellence.</p>
-            
             <div class="cert-form">
                 <input type="text" id="cert-name" placeholder="ENTER FULL NAME" class="premium-input">
                 <input type="email" id="cert-email" placeholder="ENTER EMAIL ADDRESS" class="premium-input">
             </div>
-
             <button class="modal-btn claim-btn" onclick="submitCertificate()">CLAIM CERTIFICATE</button>
         </div>
     </div>
 
     <script src="{{ url_for('static', filename='typing.js') }}"></script>
     <script>
+        // MOBILE BLOCKER LOGIC
+        function checkDevice() {
+            const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            if (isMobile) {
+                document.getElementById('mobile-blocker').style.display = 'flex';
+                // Stop the game from loading
+                window.stop(); 
+            }
+        }
+        checkDevice();
+
         window.addEventListener('load', () => {
             loadLevel({{ level - 1 }});
         });
@@ -128,7 +166,6 @@
                 if(p.x<0||p.x>canvas.width) p.vx*=-1; 
                 if(p.y<0||p.y>canvas.height) p.vy*=-1;
 
-                // Mouse proximity lines
                 let dMouse = Math.hypot(p.x - mouse.x, p.y - mouse.y);
                 if(dMouse < 150) {
                     ctx.beginPath();
@@ -156,7 +193,6 @@
         init(); 
         draw();
 
-        // Certificate Submission Logic
         function submitCertificate() {
             const name = document.getElementById('cert-name').value;
             const email = document.getElementById('cert-email').value;

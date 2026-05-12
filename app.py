@@ -10,8 +10,7 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
 
-# --- UPDATED DATABASE SETUP ---
-# This looks for DATABASE_URL (Neon). If not found, it uses local sqlite.
+# --- DATABASE SETUP ---
 database_url = os.getenv('DATABASE_URL')
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -41,7 +40,6 @@ def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     user = User.query.get(session['user_id'])
-    # Safety check if user was deleted from DB but session remains
     if not user:
         session.pop('user_id', None)
         return redirect(url_for('login'))
@@ -70,7 +68,7 @@ def login():
 def update_level():
     if 'user_id' in session:
         user = User.query.get(session['user_id'])
-        if user:
+        if user and user.level < 50: # Prevent going over level 50
             user.level += 1
             db.session.commit()
             return jsonify({"status": "success", "new_level": user.level})
@@ -88,11 +86,20 @@ def force_level_50():
         if user:
             user.level = 50
             db.session.commit()
-            return "<h1>Hack Successful!</h1><p>You are now Level 50. Refresh your game!</p>"
+            return redirect(url_for('index')) # Redirect back to game instead of showing raw text
     return "Please login first!"
 
 @app.route('/claim_certificate', methods=['POST'])
 def claim_certificate():
+    if 'user_id' not in session:
+        return jsonify({"status": "error", "message": "Access Denied"}), 401
+
+    user = User.query.get(session['user_id'])
+    
+    # CRITICAL SECURITY: Check level before sending email
+    if not user or user.level < 50:
+        return jsonify({"status": "error", "message": "Integrity Check Failed: Level 50 Required"}), 403
+
     data = request.json
     full_name = data.get('name')
     target_email = data.get('email')
@@ -113,6 +120,7 @@ def claim_certificate():
         
         Status: Verified
         Level: 50 / 50
+        System: SADU_NEURAL_LINK
         --------------------------
         """
         mail.send(msg)
@@ -125,6 +133,5 @@ with app.app_context():
     db.create_all()
 
 if __name__ == '__main__':
-    # Use PORT from environment for cloud hosting
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
